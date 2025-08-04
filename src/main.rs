@@ -1,10 +1,18 @@
-use actix_web::{App, HttpServer, web};
+use actix_web::{
+    App, HttpResponse, HttpServer,
+    web::{self},
+};
 use dotenv::dotenv;
 use rust_backend::{
-    auth::{login, middlewares::jwt_auth::JwtAuth, register},
     common::{
-        database::{create_db_pool, run_migrations}, AppState
-    }, post::get_book,
+        AppState,
+        database::{create_db_pool, run_migrations},
+    },
+    entities::{
+        auth::{guards::role_guard::RoleGuard, login, middlewares::jwt_auth::JwtAuth, register},
+        post::{get_book, get_secret_book},
+    },
+    models::auth::UserRole,
 };
 use std::io::Result as IoResult;
 
@@ -53,6 +61,10 @@ use std::io::Result as IoResult;
 //     HttpResponse::Ok().json(&*books)
 // }
 
+async fn test_handler() -> HttpResponse {
+    HttpResponse::Ok().body("Pong!")
+}
+
 // #[get("/")]
 // async fn hello_world() -> impl Responder {
 //     HttpResponse::Ok().body("Hello fucking world, im starting learning actix")
@@ -79,12 +91,19 @@ async fn main() -> IoResult<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(app_data.clone())
+            // .service(
+            // web::scope("")
             .route("/register", web::post().to(register))
             .route("/login", web::post().to(login))
+            // )
             .service(
                 web::scope("")
-                .wrap(JwtAuth)
-                .route("/book", web::get().to(get_book))
+                    .wrap(JwtAuth)
+                    .route("/book", web::get().to(get_book))
+                    .route(
+                        "/book-secret",
+                        web::get().to(get_secret_book),
+                    ),
             )
     })
     .bind("127.0.0.1:8080")?

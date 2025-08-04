@@ -1,12 +1,11 @@
 use std::rc::Rc;
 
 use actix_web::{
-    Error,
-    dev::{ServiceRequest, ServiceResponse, Transform, forward_ready},
+    dev::{forward_ready, ServiceRequest, ServiceResponse, Transform}, Error, HttpMessage
 };
 use futures_util::future::{LocalBoxFuture, Ready, ok};
 
-use crate::{auth::jwt::verify_jwt, common::errors::api_error::ApiError};
+use crate::{common::errors::api_error::ApiError, entities::auth::jwt::verify_jwt};
 
 pub struct JwtAuth;
 
@@ -50,6 +49,10 @@ where
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let svc = self.service.clone();
 
+        // if JWT_MDLWR_PUBLIC_PATHS.contains(&req.path()) {
+        //     return Box::pin(async move { svc.call(req).await });
+        // }
+
         Box::pin(async move {
             let auth_header = match req.headers().get("Authorization") {
                 Some(header) => header.to_str().map_err(|_| {
@@ -70,8 +73,13 @@ where
 
             let token = &auth_header[7..];
 
-            if verify_jwt(token).is_none() {
-                return Err(ApiError::Unauthorized("Invalid or expired token".into()).into());
+            match verify_jwt(token) {
+                Some(claims) => {
+                    req.extensions_mut().insert(claims);
+                },
+                None => {
+                    return Err(ApiError::Unauthorized("Invalid or expired token".into()).into());
+                },
             };
 
             svc.call(req).await

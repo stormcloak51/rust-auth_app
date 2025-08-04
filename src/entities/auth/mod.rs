@@ -2,12 +2,13 @@ pub mod constants;
 pub mod dto;
 pub mod jwt;
 pub mod middlewares;
+pub mod guards;
 
 use crate::{
-    auth::dto::{AuthResponse, CreateUserDto, LoginDto},
+    entities::auth::dto::{AuthResponse, CreateUserDto, LoginDto},
     common::{AppState, errors::api_error::ApiError},
     models::user::User,
-    user::{check_user_exists, dto::CheckUserExistsDto},
+    entities::user::{check_user_exists, dto::CheckUserExistsDto},
 };
 use actix_web::{
     HttpResponse,
@@ -25,7 +26,6 @@ pub async fn register(
     match new_user.validate() {
         Ok(_) => (),
         Err(e) => {
-            println!("validata {:#?}", e.field_errors().);
             Err(ApiError::Validation(e))
         }?,
     }

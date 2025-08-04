@@ -1,6 +1,6 @@
 use actix_web::{HttpResponse, ResponseError, http::StatusCode};
 use sqlx::postgres::PgDatabaseError;
-use std::fmt;
+use std::{collections::HashMap, fmt};
 use validator::ValidationErrors;
 
 #[derive(Debug, serde::Serialize)]
@@ -8,7 +8,7 @@ pub struct ErrorResponseBody {
     code: u16,
     error: String,
     message: String,
-    // details: Option<Vec<String>>,
+    details: Option<HashMap<String, Vec<String>>>,
 }
 
 #[derive(Debug)]
@@ -64,19 +64,33 @@ impl ResponseError for ApiError {
 
     fn error_response(&self) -> HttpResponse {
         let status = self.status_code();
-        // let details = match self {
-        //     ApiError::Validation(errors) => {
-        //         let vec: Vec<String> = Vec::new();
+        let details = match self {
+            ApiError::Validation(errors) => {
+                let mut validation_details: HashMap<String, Vec<String>> = HashMap::new();
 
-        //         errors.field_errors();
-        //         vec
-        //     }
-        // };
+                for (field, field_errors) in errors.field_errors() {
+                    let messages: Vec<String> = field_errors
+                        .into_iter()
+                        .map(|e| {
+                            e.message
+                                .as_ref()
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| e.code.to_string())
+                        })
+                        .collect();
+                    validation_details.insert(field.to_string(), messages);
+                }
+
+                Some(validation_details)
+            }
+            _ => None,
+        };
 
         let body = ErrorResponseBody {
             code: status.as_u16(),
             error: status.canonical_reason().unwrap_or("Error").to_string(),
             message: self.to_string(),
+            details,
         };
 
         HttpResponse::build(status).json(body)

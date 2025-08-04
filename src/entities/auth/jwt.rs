@@ -1,5 +1,5 @@
 use crate::{
-	auth::{
+	entities::auth::{
 			constants::{ACCESS_TOKEN_EXPIRATION, REFRESH_TOKEN_EXPIRATION},
 			dto::{Tokens},
 	},
